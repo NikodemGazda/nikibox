@@ -14,8 +14,8 @@ function onHost(c,m){switch(m.t){
 }}
 function drop(c){players=players.filter(p=>p.c!=c); updateLobby(); if(phase=='lobby')broadcast('lobby',{players:pubPlayers()});}
 function pubPlayers(){return players.map((p,i)=>({i,name:p.name}));}
-function updateLobby(){$('players').innerHTML=players.map(p=>`<li>${p.name}</li>`).join(''); $('start').hidden=!players.length;}
-function startGame(){phase='prompt'; step=0; booklets=[]; players.forEach((p,i)=>p.i=i); answers={}; $('lobby').hidden=1; $('reveal').hidden=1; $('play').hidden=0; $('phase').textContent='Secret prompts'; count(); players.forEach(p=>send(p.c,'prompt',{i:p.i,players:pubPlayers()}));}
+function updateLobby(){$('players').innerHTML=players.map(p=>`<li>${p.name}</li>`).join(''); $('games').hidden=!players.length;}
+function startGame(){phase='prompt'; step=0; booklets=[]; players.forEach((p,i)=>p.i=i); answers={}; $('lobby').hidden=1; $('reveal').hidden=1; $('play').hidden=0; $('phase').textContent='Telesketch: secret prompts'; count(); players.forEach(p=>send(p.c,'prompt',{i:p.i,players:pubPlayers()}));}
 function checkAnswers(){
   count(); if(Object.keys(answers).length<players.length)return;
   if(phase=='prompt')booklets=players.map((p,i)=>({owner:i,ownerName:p.name,entries:[{kind:'prompt',by:i,byName:p.name,v:answers[i]}]}));
@@ -46,7 +46,7 @@ function onPlayer(m){switch(m.t){
   case'prompt': me=m.i; promptUI(); break;
   case'task': me=m.i; taskUI(m.tasks); break;
   case'done': $('task').hidden=1; $('wait').hidden=0; $('waitMsg').textContent='Reveal time. Look at the host screen!'; break;
-  case'reset': $('task').hidden=1; $('wait').hidden=0; $('waitMsg').textContent='Waiting for host to start...'; break;
+  case'reset': $('task').hidden=1; $('wait').hidden=0; $('waitMsg').textContent='Waiting for host to choose a game...'; break;
 }}
 function showTask(title,html){$('wait').hidden=1; $('task').hidden=0; $('taskTitle').textContent=title; $('taskBody').innerHTML=html; $('submit').disabled=0;}
 function promptUI(){let w=[...WORDS].sort(()=>Math.random()-.5).slice(0,6); showTask('Pick a secret prompt',`<div class="words">${w.map(x=>`<button type="button">${x}</button>`).join('')}</div><textarea id="custom" placeholder="Or type your own"></textarea>`); picked=''; [...document.querySelectorAll('.words button')].forEach(b=>b.onclick=()=>{picked=b.textContent; document.querySelectorAll('.words button').forEach(x=>x.classList.toggle('pick',x==b));}); $('submit').onclick=()=>submit(($('custom').value.trim()||picked));}
