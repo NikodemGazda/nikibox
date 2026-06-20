@@ -1,0 +1,24 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Telesketch Host</title><link rel="stylesheet" href="style.css">
+</head><body data-role="host">
+<main>
+  <h1>Telesketch</h1>
+  <section id="lobby" class="panel">
+    <p>Room Code</p><b id="code">----</b>
+    <div id="qr"></div><p id="joinUrl"></p>
+    <h2>Players</h2><ul id="players"></ul>
+    <button id="start" hidden>Start Game</button>
+  </section>
+  <section id="play" class="panel" hidden>
+    <h2 id="phase">Waiting...</h2><p id="count"></p>
+  </section>
+  <section id="reveal" class="panel" hidden>
+    <h2 id="revTitle">Reveal</h2><div id="revBody"></div>
+    <p id="revStep"></p><button id="prev">Back</button><button id="next">Next</button>
+  </section>
+</main>
+<script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="game.js"></script>
+</body></html>
