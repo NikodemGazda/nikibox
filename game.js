@@ -6,7 +6,7 @@ function bootHost(){
   let room=code(); $('code').textContent=room; let url=new URL('player.html',location.href); url.searchParams.set('room',room); $('joinUrl').textContent=url.href;
   new QRCode($('qr'),{text:url.href,width:190,height:190}); peer=new Peer(ROOM+room);
   peer.on('connection',c=>{c.on('data',m=>onHost(c,m)); c.on('close',()=>drop(c));});
-  $('start').onclick=startGame; $('prev').onclick=()=>showReveal(-1); $('next').onclick=()=>showReveal(1);
+  $('start').onclick=startGame; $('prev').onclick=()=>showReveal(-1); $('next').onclick=()=>showReveal(1); $('restart').onclick=resetGame;
 }
 function onHost(c,m){switch(m.t){
   case'join': if(phase!='lobby')return send(c,'err',{msg:'Game already started'}); if(!players.find(p=>p.c==c)){players.push({id:c.peer,name:esc(m.name||'Player'),c}); c.on('close',()=>drop(c));} send(c,'joined',{players:pubPlayers()}); updateLobby(); broadcast('lobby',{players:pubPlayers()}); break;
@@ -15,17 +15,18 @@ function onHost(c,m){switch(m.t){
 function drop(c){players=players.filter(p=>p.c!=c); updateLobby(); if(phase=='lobby')broadcast('lobby',{players:pubPlayers()});}
 function pubPlayers(){return players.map((p,i)=>({i,name:p.name}));}
 function updateLobby(){$('players').innerHTML=players.map(p=>`<li>${p.name}</li>`).join(''); $('start').hidden=!players.length;}
-function startGame(){phase='prompt'; players.forEach((p,i)=>p.i=i); answers={}; $('lobby').hidden=1; $('play').hidden=0; $('phase').textContent='Secret prompts'; count(); players.forEach(p=>send(p.c,'prompt',{i:p.i,players:pubPlayers()}));}
+function startGame(){phase='prompt'; step=0; booklets=[]; players.forEach((p,i)=>p.i=i); answers={}; $('lobby').hidden=1; $('reveal').hidden=1; $('play').hidden=0; $('phase').textContent='Secret prompts'; count(); players.forEach(p=>send(p.c,'prompt',{i:p.i,players:pubPlayers()}));}
 function checkAnswers(){
   count(); if(Object.keys(answers).length<players.length)return;
-  if(phase=='prompt'){booklets=players.map((p,i)=>({owner:i,ownerName:p.name,entries:[{kind:'prompt',by:i,byName:p.name,v:answers[i]}]})); step=1;}
+  if(phase=='prompt')booklets=players.map((p,i)=>({owner:i,ownerName:p.name,entries:[{kind:'prompt',by:i,byName:p.name,v:answers[i]}]}));
   else {booklets.forEach((b,bi)=>{let by=(b.owner+step)%players.length,bn=players[by].name,last=b.entries[b.entries.length-1]; b.entries.push({kind:last.kind=='draw'?'guess':'draw',by,byName:bn,v:answers[by][bi]});}); step++;}
-  if(step>players.length)return reveal();
+  if(step>=players.length)return reveal();
   answers={}; phase='round'; $('phase').textContent=`Round ${step+1} of ${players.length}`; count();
   players.forEach((p,i)=>{let tasks={}; booklets.forEach((b,bi)=>{if((b.owner+step)%players.length==i)tasks[bi]=b.entries[b.entries.length-1];}); send(p.c,'task',{i,step,tasks});});
 }
 function count(){let n=Object.keys(answers).length; $('count').textContent=`${n}/${players.length} submitted`;}
 function reveal(){phase='reveal'; broadcast('done'); $('play').hidden=1; $('reveal').hidden=0; rev=revStep=0; showReveal(0);}
+function resetGame(){phase='lobby'; step=rev=revStep=0; answers={}; booklets=[]; $('reveal').hidden=1; $('play').hidden=1; $('lobby').hidden=0; updateLobby(); broadcast('reset',{players:pubPlayers()});}
 function showReveal(d){let b=booklets[rev]; if(d){revStep+=d; if(revStep<0&&rev>0){rev--;revStep=booklets[rev].entries.length-1} if(revStep>=b.entries.length&&rev<booklets.length-1){rev++;revStep=0} revStep=Math.max(0,Math.min(revStep,booklets[rev].entries.length-1)); b=booklets[rev];}
   let e=b.entries[revStep]; $('revTitle').textContent=`${b.ownerName}'s booklet`; $('revStep').textContent=`${rev+1}/${booklets.length} · ${revStep+1}/${b.entries.length} · ${e.byName}`;
   $('revBody').innerHTML=e.kind=='draw'?`<img src="${e.v}" alt="drawing">`:`<div class="muted">${e.kind=='prompt'?'Original prompt':'Guess'}</div><div class="bigText">${esc(e.v)}</div>`;
@@ -45,6 +46,7 @@ function onPlayer(m){switch(m.t){
   case'prompt': me=m.i; promptUI(); break;
   case'task': me=m.i; taskUI(m.tasks); break;
   case'done': $('task').hidden=1; $('wait').hidden=0; $('waitMsg').textContent='Reveal time. Look at the host screen!'; break;
+  case'reset': $('task').hidden=1; $('wait').hidden=0; $('waitMsg').textContent='Waiting for host to start...'; break;
 }}
 function showTask(title,html){$('wait').hidden=1; $('task').hidden=0; $('taskTitle').textContent=title; $('taskBody').innerHTML=html; $('submit').disabled=0;}
 function promptUI(){let w=[...WORDS].sort(()=>Math.random()-.5).slice(0,6); showTask('Pick a secret prompt',`<div class="words">${w.map(x=>`<button type="button">${x}</button>`).join('')}</div><textarea id="custom" placeholder="Or type your own"></textarea>`); picked=''; [...document.querySelectorAll('.words button')].forEach(b=>b.onclick=()=>{picked=b.textContent; document.querySelectorAll('.words button').forEach(x=>x.classList.toggle('pick',x==b));}); $('submit').onclick=()=>submit(($('custom').value.trim()||picked));}
