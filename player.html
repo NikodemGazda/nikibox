@@ -5,9 +5,11 @@
 <main>
   <h1>nikibox</h1>
   <section id="join" class="panel">
-    <input id="room" maxlength="4" placeholder="ROOM" autocomplete="off">
-    <input id="name" maxlength="18" placeholder="Your name" autocomplete="name">
-    <button id="joinBtn">Join</button><p id="err"></p>
+    <form id="joinForm">
+      <input id="room" maxlength="4" placeholder="ROOM" autocomplete="off">
+      <input id="name" maxlength="18" placeholder="Your name" autocomplete="name">
+      <button id="joinBtn" type="submit">Join</button><p id="err"></p>
+    </form>
   </section>
   <section id="wait" class="panel" hidden><h2 id="waitMsg">Waiting for host to choose a game...</h2></section>
   <section id="task" class="panel" hidden>
