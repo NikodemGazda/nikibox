@@ -26,7 +26,7 @@ function checkAnswers(){
 }
 function count(){let n=Object.keys(answers).length; $('count').textContent=`${n}/${players.length} submitted`;}
 function reveal(){phase='reveal'; broadcast('done'); $('play').hidden=1; $('reveal').hidden=0; rev=revStep=0; showReveal(0);}
-function resetGame(){phase='lobby'; step=rev=revStep=0; answers={}; booklets=[]; $('reveal').hidden=1; $('play').hidden=1; $('lobby').hidden=0; updateLobby(); broadcast('reset',{players:pubPlayers()});}
+function resetGame(){phase='lobby'; step=rev=revStep=0; answers={}; booklets=[]; $('reveal').hidden=1; $('play').hidden=1; $('lobby').hidden=0; updateLobby(); broadcast('home',{players:pubPlayers()});}
 function showReveal(d){let b=booklets[rev]; if(d){revStep+=d; if(revStep<0&&rev>0){rev--;revStep=booklets[rev].entries.length-1} if(revStep>=b.entries.length&&rev<booklets.length-1){rev++;revStep=0} revStep=Math.max(0,Math.min(revStep,booklets[rev].entries.length-1)); b=booklets[rev];}
   let e=b.entries[revStep]; $('revTitle').textContent=`${b.ownerName}'s booklet`; $('revStep').textContent=`${rev+1}/${booklets.length} · ${revStep+1}/${b.entries.length} · ${e.byName}`;
   $('revBody').innerHTML=e.kind=='draw'?`<img src="${e.v}" alt="drawing">`:`<div class="muted">${e.kind=='prompt'?'Original prompt':'Guess'}</div><div class="bigText">${esc(e.v)}</div>`;
@@ -46,7 +46,7 @@ function onPlayer(m){switch(m.t){
   case'prompt': me=m.i; promptUI(); break;
   case'task': me=m.i; taskUI(m.tasks); break;
   case'done': $('task').hidden=1; $('wait').hidden=0; $('waitMsg').textContent='Reveal time. Look at the host screen!'; break;
-  case'reset': $('task').hidden=1; $('wait').hidden=0; $('waitMsg').textContent='Waiting for host to choose a game...'; break;
+  case'home': $('join').hidden=1; $('task').hidden=1; $('wait').hidden=0; $('waitMsg').textContent='Waiting for host to choose a game...'; break;
 }}
 function showTask(title,html){$('wait').hidden=1; $('task').hidden=0; $('taskTitle').textContent=title; $('taskBody').innerHTML=html; $('submit').disabled=0;}
 function promptUI(){let w=[...WORDS].sort(()=>Math.random()-.5).slice(0,6); showTask('Pick a secret prompt',`<div class="words">${w.map(x=>`<button type="button">${x}</button>`).join('')}</div><textarea id="custom" placeholder="Or type your own"></textarea>`); picked=''; [...document.querySelectorAll('.words button')].forEach(b=>b.onclick=()=>{picked=b.textContent; document.querySelectorAll('.words button').forEach(x=>x.classList.toggle('pick',x==b));}); $('submit').onclick=()=>submit(($('custom').value.trim()||picked));}
