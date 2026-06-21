@@ -3,10 +3,12 @@ let peer,me,conn,players=[],booklets=[],phase='lobby',step=0,answers={},picked='
 const code=()=>Math.random().toString(36).replace(/[^a-z]+/g,'').slice(0,4).toUpperCase(),esc=s=>(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])),send=(c,t,d={})=>c&&c.open&&c.send({t,...d}),broadcast=(t,d={})=>players.forEach(p=>send(p.c,t,d)),K=(x,y)=>x+','+y,D=[[1,0],[0,1],[1,1],[1,-1]];
 if(role=='host') bootHost(); else bootPlayer();
 function bootHost(){
-  let room=code(); $('code').textContent=room; let url=new URL('player.html',location.href); url.searchParams.set('room',room); $('joinUrl').textContent=url.href;
+  let room=localStorage.getItem('nk_room'); if(!room){room=code();localStorage.setItem('nk_room',room);}
+  $('code').textContent=room; let url=new URL('player.html',location.href); url.searchParams.set('room',room); $('joinUrl').textContent=url.href;
   new QRCode($('qr'),{text:url.href,width:190,height:190}); peer=new Peer(ROOM+room);
   peer.on('connection',c=>{c.on('data',m=>onHost(c,m)); c.on('close',()=>drop(c));});
   $('start').onclick=startGame; $('ringo').onclick=startRingo; $('prev').onclick=()=>showReveal(-1); $('next').onclick=()=>showReveal(1); $('restart').onclick=home;
+  $('newRoomBtn').onclick=()=>{localStorage.removeItem('nk_room');location.reload();};
 }
 function onHost(c,m){switch(m.t){
   case'join': if(phase!='lobby')return send(c,'err',{msg:'Game already started'}); if(!players.find(p=>p.c==c)){players.push({id:c.peer,name:esc(m.name||'Player'),c}); c.on('close',()=>drop(c));} send(c,'joined',{players:pubPlayers()}); updateLobby(); broadcast('lobby',{players:pubPlayers()}); break;
