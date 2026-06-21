@@ -3,12 +3,17 @@ let peer,me,conn,players=[],booklets=[],phase='lobby',step=0,answers={},picked='
 const code=()=>Math.random().toString(36).replace(/[^a-z]+/g,'').slice(0,4).toUpperCase(),esc=s=>(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])),send=(c,t,d={})=>c&&c.open&&c.send({t,...d}),broadcast=(t,d={})=>players.forEach(p=>send(p.c,t,d)),K=(x,y)=>x+','+y,D=[[1,0],[0,1],[1,1],[1,-1]];
 if(role=='host') bootHost(); else bootPlayer();
 function bootHost(){
-  let room=localStorage.getItem('nk_room'); if(!room){room=code();localStorage.setItem('nk_room',room);}
+  console.log('[HOST] Booting host...');
+  let room=localStorage.getItem('nk_room'); if(!room){room=code();localStorage.setItem('nk_room',room); console.log('[HOST] Generated new room:', room);}else{console.log('[HOST] Loaded existing room:', room);}
   $('code').textContent=room; let url=new URL('player.html',location.href); url.searchParams.set('room',room); $('joinUrl').textContent=url.href;
-  new QRCode($('qr'),{text:url.href,width:190,height:190}); peer=new Peer(ROOM+room);
-  peer.on('connection',c=>{c.on('data',m=>onHost(c,m)); c.on('close',()=>drop(c));});
+  new QRCode($('qr'),{text:url.href,width:190,height:190}); 
+  console.log('[HOST] Creating Peer with ID:', ROOM+room);
+  peer=new Peer(ROOM+room);
+  peer.on('open', id => console.log('[HOST] PeerJS connected to server. ID:', id));
+  peer.on('connection',c=>{console.log('[HOST] Incoming connection from:', c.peer); c.on('data',m=>onHost(c,m)); c.on('close',()=>drop(c));});
+  peer.on('error',e=>{console.error('[HOST] PeerJS Error:', e.type, e.message); if(e.type==='unavailable-id'){console.log('[HOST] ID taken, resetting room code...'); localStorage.removeItem('nk_room');location.reload();}else{$('code').textContent='ERR: ' + e.type;}});
   $('start').onclick=startGame; $('ringo').onclick=startRingo; $('prev').onclick=()=>showReveal(-1); $('next').onclick=()=>showReveal(1); $('restart').onclick=home;
-  $('newRoomBtn').onclick=()=>{localStorage.removeItem('nk_room');location.reload();};
+  $('newRoomBtn').onclick=()=>{console.log('[HOST] New Room clicked'); localStorage.removeItem('nk_room');location.reload();};
 }
 function onHost(c,m){switch(m.t){
   case'join': if(phase!='lobby')return send(c,'err',{msg:'Game already started'}); if(!players.find(p=>p.c==c)){players.push({id:c.peer,name:esc(m.name||'Player'),c}); c.on('close',()=>drop(c));} send(c,'joined',{players:pubPlayers()}); updateLobby(); broadcast('lobby',{players:pubPlayers()}); break;
@@ -70,8 +75,8 @@ function adj(x,y){return rg.b.some(o=>Math.max(Math.abs(o.x-x),Math.abs(o.y-y))=
 function joined(a){if(a.length<2)return 1; let s=[a[0]],seen={[K(a[0].x,a[0].y)]:1}; for(let n=0;n<s.length;n++)a.forEach(o=>{let k=K(o.x,o.y); if(!seen[k]&&Math.max(Math.abs(o.x-s[n].x),Math.abs(o.y-s[n].y))==1){seen[k]=1; s.push(o)}}); return s.length==a.length}
 function winner(){for(let k of['d','r'])for(let c of['r','b'])for(let o of rg.b)for(let [dx,dy]of D){let a=[]; for(let n=0;n<4;n++){let q=at(o.x+dx*n,o.y+dy*n); if(!q||q[k]!=c)break; a.push(q)} if(a.length==4){let p=at(o.x-dx,o.y-dy),e=at(o.x+dx*4,o.y+dy*4); if((!p||p[k]!=c)&&(!e||e[k]!=c))return{c,k:k=='d'?'discs':'rings'}}}}
 
-function bootPlayer(){$('room').value=(new URLSearchParams(location.search).get('room')||'').toUpperCase(); $('joinForm').onsubmit=e=>{e.preventDefault(); join();};}
-function join(){let room=$('room').value.trim().toUpperCase(),name=$('name').value.trim()||'Player'; if(room.length!=4)return err('Enter a 4-letter room code'); err('Connecting...'); peer=new Peer(); peer.on('open',()=>{conn=peer.connect(ROOM+room,{reliable:true}); conn.on('open',()=>send(conn,'join',{name})); conn.on('data',onPlayer); conn.on('close',()=>err('Disconnected from host'));}); peer.on('error',e=>err(e.type=='peer-unavailable'?'Room not found':e.message));}
+function bootPlayer(){console.log('[PLAYER] Booting player...'); $('room').value=(new URLSearchParams(location.search).get('room')||'').toUpperCase(); $('joinForm').onsubmit=e=>{e.preventDefault(); console.log('[PLAYER] Join form submitted'); join();};}
+function join(){let room=$('room').value.trim().toUpperCase(),name=$('name').value.trim()||'Player'; if(room.length!=4)return err('Enter a 4-letter room code'); err('Connecting...'); console.log('[PLAYER] Joining room:', room, 'as', name); peer=new Peer(); peer.on('open',()=>{console.log('[PLAYER] PeerJS connected to server. ID:', peer.id); console.log('[PLAYER] Connecting to host:', ROOM+room); conn=peer.connect(ROOM+room,{reliable:true}); conn.on('open',()=>{console.log('[PLAYER] Connected to host!'); send(conn,'join',{name});}); conn.on('data',onPlayer); conn.on('close',()=>{console.log('[PLAYER] Connection to host closed'); err('Disconnected from host');});}); peer.on('error',e=>{console.error('[PLAYER] PeerJS Error:', e.type, e.message); err(e.type==='peer-unavailable'?'Room not found!':e.message);});}
 function err(s){$('err').textContent=s;}
 function onPlayer(m){switch(m.t){
   case'err': err(m.msg); break; case'rerr': $('taskTitle').textContent=m.msg; break;
