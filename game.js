@@ -71,7 +71,7 @@ function joined(a){if(a.length<2)return 1; let s=[a[0]],seen={[K(a[0].x,a[0].y)]
 function winner(){for(let k of['d','r'])for(let c of['r','b'])for(let o of rg.b)for(let [dx,dy]of D){let a=[]; for(let n=0;n<4;n++){let q=at(o.x+dx*n,o.y+dy*n); if(!q||q[k]!=c)break; a.push(q)} if(a.length==4){let p=at(o.x-dx,o.y-dy),e=at(o.x+dx*4,o.y+dy*4); if((!p||p[k]!=c)&&(!e||e[k]!=c))return{c,k:k=='d'?'discs':'rings'}}}}
 
 function bootPlayer(){$('room').value=(new URLSearchParams(location.search).get('room')||'').toUpperCase(); $('joinForm').onsubmit=e=>{e.preventDefault(); join();};}
-function join(){let room=$('room').value.trim().toUpperCase(),name=$('name').value.trim()||'Player'; if(room.length!=4)return err('Enter a 4-letter room code'); peer=new Peer(); peer.on('open',()=>{conn=peer.connect(ROOM+room,{reliable:true}); conn.on('open',()=>send(conn,'join',{name})); conn.on('data',onPlayer); conn.on('close',()=>err('Disconnected'));});}
+function join(){let room=$('room').value.trim().toUpperCase(),name=$('name').value.trim()||'Player'; if(room.length!=4)return err('Enter a 4-letter room code'); err('Connecting...'); peer=new Peer(); peer.on('open',()=>{conn=peer.connect(ROOM+room,{reliable:true}); conn.on('open',()=>send(conn,'join',{name})); conn.on('data',onPlayer); conn.on('close',()=>err('Disconnected from host'));}); peer.on('error',e=>err(e.type=='peer-unavailable'?'Room not found':e.message));}
 function err(s){$('err').textContent=s;}
 function onPlayer(m){switch(m.t){
   case'err': err(m.msg); break; case'rerr': $('taskTitle').textContent=m.msg; break;

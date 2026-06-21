@@ -4,11 +4,12 @@
 </head><body data-role="player">
 <main>
   <h1>nikibox</h1>
+  <div style="color:#777; margin-top:-10px; margin-bottom:20px; font-weight:bold;">v.1.1</div>
   <section id="join" class="panel">
     <form id="joinForm">
       <input id="room" maxlength="4" placeholder="ROOM" autocomplete="off">
       <input id="name" maxlength="18" placeholder="Your name" autocomplete="name">
-      <button id="joinBtn" type="submit">Join</button><p id="err"></p>
+      <button id="joinBtn" type="submit">Join</button><p id="err" style="color:#d22; font-weight:bold;"></p>
     </form>
   </section>
   <section id="wait" class="panel" hidden><h2 id="waitMsg">Waiting for host to choose a game...</h2></section>
@@ -17,5 +18,5 @@
   </section>
 </main>
 <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
-<script src="game.js?v=2"></script>
+<script src="game.js?v=1.1"></script>
 </body></html>
