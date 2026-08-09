@@ -45,21 +45,35 @@ function cleanState(i) {
 function kickPlayer(id) { send(id, 'kicked'); drop(id); }
 function onHost(m){switch(m.t){
   case'join': if(phase!='lobby'){
-      let p=players.find(x=>x.name===m.name);
-      if(p){ p.id=m.id; send(m.id,'sync_res',cleanState(p.i)); return; }
-      return send(m.id,'err',{msg:'Game already started. Use the exact same name to rejoin.'});
+      return send(m.id,'err',{msg:'Game already started.'});
     }
     if(!players.find(p=>p.id==m.id)){players.push({id:m.id,name:esc(m.name||'Player')});} send(m.id,'joined',{players:pubPlayers()}); updateLobby(); broadcast('lobby',{players:pubPlayers()}); break;
-  case'sync_req': let p=players.find(x=>x.id==m.id); if(p) send(m.id,'sync_res',cleanState(p.i)); break;
+  case'sync_req': 
+    let p=players.find(x=>x.id==m.id); 
+    if(p) send(m.id,'sync_res',cleanState(p.i)); 
+    else send(m.id,'sync_res',{phase, names:pubPlayers()});
+    break;
+  case'claim_player':
+    let claimP = players[m.i];
+    if (claimP && phase!='lobby') {
+      claimP.id = m.id;
+      send(m.id,'sync_res',cleanState(m.i));
+    }
+    break;
   case'answer': if(!players[m.i]||players[m.i].id!=m.id||answers[m.i])return; answers[m.i]=m.v; checkAnswers(); break;
   case'ringo': ringoTap(m.id,m); break;
 }}
 function drop(id){players=players.filter(p=>p.id!=id); updateLobby(); if(phase=='lobby')broadcast('lobby',{players:pubPlayers()});}
 function pubPlayers(){return players.map((p,i)=>({i,name:p.name}));}
-function updateLobby(){$('players').innerHTML=players.map(p=>`<li>${p.name} <button class="kick-btn" style="padding:2px 6px;margin-left:5px" onclick="kickPlayer('${p.id}')">Kick</button></li>`).join(''); $('games').hidden=!players.length; $('ringo').disabled=players.length<2;}
+function updateBanner() {
+  let b = $('host-banner'); if(!b) return;
+  b.hidden = phase == 'lobby' && !players.length;
+  let codeEl = $('banner-code'); if(codeEl) codeEl.textContent = room;
+  let playersEl = $('banner-players'); if(playersEl) playersEl.innerHTML = players.map(p=>`<li>${p.name}</li>`).join('');
+}
+function updateLobby(){$('players').innerHTML=players.map(p=>`<li class="player-item" onclick="kickPlayer('${p.id}')" title="Click to kick">${p.name}</li>`).join(''); $('games').hidden=!players.length; $('ringo').disabled=players.length<2; updateBanner();}
 function home(){phase='lobby'; step=rev=revStep=0; answers={}; booklets=[]; rg=null; errMsg=''; $('phase').className=''; $('reveal').hidden=1; $('play').hidden=1; $('lobby').hidden=0; $('hostBoard').innerHTML=''; updateLobby(); broadcast('home',{players:pubPlayers()});}
-
-function startGame(){phase='prompt'; step=0; deadline=Date.now()+30000; booklets=[]; players.forEach((p,i)=>p.i=i); answers={}; $('phase').className=''; $('lobby').hidden=1; $('reveal').hidden=1; $('play').hidden=0; $('hostBoard').innerHTML=''; $('phase').textContent='Telesketch: secret prompts'; count(); players.forEach(p=>send(p.id,'prompt',{i:p.i,players:pubPlayers(),deadline}));}
+function startGame(){phase='prompt'; step=0; deadline=0; booklets=[]; players.forEach((p,i)=>p.i=i); answers={}; $('phase').className=''; $('lobby').hidden=1; $('reveal').hidden=1; $('play').hidden=0; $('hostBoard').innerHTML=''; $('phase').textContent='Telesketch: secret prompts'; count(); players.forEach(p=>send(p.id,'prompt',{i:p.i,players:pubPlayers(),deadline})); updateBanner();}
 function checkAnswers(){
   count(); if(deadline && Object.keys(answers).length<players.length)return;
   deadline = 0;
@@ -112,14 +126,37 @@ function adj(x,y){return rg.b.some(o=>Math.max(Math.abs(o.x-x),Math.abs(o.y-y))=
 function joined(a){if(a.length<2)return 1; let s=[a[0]],seen={[K(a[0].x,a[0].y)]:1}; for(let n=0;n<s.length;n++)a.forEach(o=>{let k=K(o.x,o.y); if(!seen[k]&&Math.max(Math.abs(o.x-s[n].x),Math.abs(o.y-s[n].y))==1){seen[k]=1; s.push(o)}}); return s.length==a.length}
 function winner(){for(let k of['d','r'])for(let c of['r','b'])for(let o of rg.b)for(let [dx,dy]of D){let a=[]; for(let n=0;n<4;n++){let q=at(o.x+dx*n,o.y+dy*n); if(!q||q[k]!=c)break; a.push(q)} if(a.length==4){let p=at(o.x-dx,o.y-dy),e=at(o.x+dx*4,o.y+dy*4); if((!p||p[k]!=c)&&(!e||e[k]!=c))return{c,k:k=='d'?'discs':'rings'}}}}
 
-function bootPlayer(){console.log('[PLAYER] Booting player...'); $('room').value=(new URLSearchParams(location.search).get('room')||'').toUpperCase(); $('joinForm').onsubmit=e=>{e.preventDefault(); console.log('[PLAYER] Join form submitted'); join();}; addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&room&&myId)sendToHost('sync_req');});}
-function join(){room=$('room').value.trim().toUpperCase();let name=$('name').value.trim()||'Player'; if(room.length!=4)return err('Enter a 4-letter room code'); err('Connecting...'); console.log('[PLAYER] Joining room:', room, 'as', name); myId=code()+code(); mqttClient=mqtt.connect('wss://broker.emqx.io:8084/mqtt'); mqttClient.on('connect',()=>{console.log('[PLAYER] MQTT connected! ID:', myId); mqttClient.subscribe(`nk/${room}/p/${myId}`); mqttClient.subscribe(`nk/${room}/all`); console.log('[PLAYER] Sending join to host...'); sendToHost('join',{name});}); mqttClient.on('message',(topic,payload)=>{try{onPlayer(JSON.parse(payload.toString()));}catch(e){}}); mqttClient.on('error',e=>{console.error('[PLAYER] MQTT Error:', e); err('Network error');});}
+function saveRoom(r) {
+  let rms = JSON.parse(localStorage.getItem('nk_recent_rooms')||'[]');
+  if (!rms.includes(r)) { rms.push(r); if(rms.length>5) rms.shift(); localStorage.setItem('nk_recent_rooms', JSON.stringify(rms)); }
+}
+function bootPlayer(){console.log('[PLAYER] Booting player...'); $('room').value=(new URLSearchParams(location.search).get('room')||'').toUpperCase(); $('joinForm').onsubmit=e=>{e.preventDefault(); console.log('[PLAYER] Join form submitted'); join();}; addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&room&&myId)sendToHost('sync_req');});
+  let rms = JSON.parse(localStorage.getItem('nk_recent_rooms')||'[]');
+  if(rms.length) {
+    let rc = $('recent-rooms-container'); if(rc) rc.hidden = 0;
+    let rl = $('recent-rooms-list'); if(rl) rl.innerHTML = rms.map(r=>`<button type="button" onclick="checkRecent('${r}')">${r}</button>`).join('');
+  }
+}
+function checkRecent(r) {
+  room = r; myId = code()+code(); mqttClient=mqtt.connect('wss://broker.emqx.io:8084/mqtt');
+  mqttClient.on('connect',()=>{mqttClient.subscribe(`nk/${room}/p/${myId}`); mqttClient.subscribe(`nk/${room}/all`); sendToHost('sync_req');});
+  mqttClient.on('message',(topic,payload)=>{try{onPlayer(JSON.parse(payload.toString()));}catch(e){}});
+}
+function claim(i) { sendToHost('claim_player', {i}); }
+function join(){room=$('room').value.trim().toUpperCase();let name=$('name').value.trim()||'Player'; if(room.length!=4)return err('Enter a 4-letter room code'); err('Connecting...'); saveRoom(room); console.log('[PLAYER] Joining room:', room, 'as', name); myId=code()+code(); mqttClient=mqtt.connect('wss://broker.emqx.io:8084/mqtt'); mqttClient.on('connect',()=>{console.log('[PLAYER] MQTT connected! ID:', myId); mqttClient.subscribe(`nk/${room}/p/${myId}`); mqttClient.subscribe(`nk/${room}/all`); console.log('[PLAYER] Sending join to host...'); sendToHost('join',{name});}); mqttClient.on('message',(topic,payload)=>{try{onPlayer(JSON.parse(payload.toString()));}catch(e){}}); mqttClient.on('error',e=>{console.error('[PLAYER] MQTT Error:', e); err('Network error');});}
 function err(s){$('err').textContent=s;}
 function onPlayer(m){switch(m.t){
   case'err': err(m.msg); break; case'rerr': $('taskTitle').textContent=m.msg; break;
   case'joined': $('join').hidden=1; $('wait').hidden=0; break; case'lobby': break;
   case'kicked': $('join').hidden=0; $('wait').hidden=1; $('task').hidden=1; err('You were kicked by the host.'); break;
-  case'sync_res': me=m.i; deadline=m.deadline; totalTime=m.phase=='prompt'?30000:(m.tasks&&Object.values(m.tasks)[0]&&Object.values(m.tasks)[0].kind=='draw'?60000:30000); if(m.phase=='prompt')promptUI(); else if(m.phase=='round')taskUI(m.tasks); else if(m.phase=='reveal'){$('task').hidden=1; $('wait').hidden=0; $('waitMsg').textContent='Reveal time. Look at the host screen!';} break;
+  case'sync_res': 
+    if (m.names && !m.tasks && m.phase != 'lobby') {
+      $('join').hidden=1; $('claim').hidden=0;
+      $('claim-players-list').innerHTML = m.names.map(n=>`<li class="player-item" onclick="claim(${n.i})">${n.name}</li>`).join('');
+      return;
+    }
+    let cb = $('claim'); if(cb) cb.hidden=1; $('join').hidden=1;
+    me=m.i; deadline=m.deadline; totalTime=m.phase=='prompt'?30000:(m.tasks&&Object.values(m.tasks)[0]&&Object.values(m.tasks)[0].kind=='draw'?60000:30000); if(m.phase=='prompt')promptUI(); else if(m.phase=='round')taskUI(m.tasks); else if(m.phase=='reveal'){$('task').hidden=1; $('wait').hidden=0; $('waitMsg').textContent='Reveal time. Look at the host screen!';} break;
   case'prompt': me=m.i; deadline=m.deadline; totalTime=30000; promptUI(); break; case'task': me=m.i; deadline=m.deadline; totalTime=Object.values(m.tasks)[0].kind=='draw'?60000:30000; taskUI(m.tasks); break;
   case'done': $('task').hidden=1; $('wait').hidden=0; $('waitMsg').textContent='Reveal time. Look at the host screen!'; break;
   case'home': $('join').hidden=1; $('task').hidden=1; $('wait').hidden=0; $('waitMsg').textContent='Waiting for host to choose a game...'; break;
@@ -133,8 +170,8 @@ function guessUI(id,img){showTask('What is this?',`<img class="guessImg" src="${
 function setColor(c) { currentColor = c; let cc = $('customColor'); if(cc && c.length===7) cc.value = c; }
 function drawUI(id,text){
   const cols = ['#000000','#ffffff','#dd2222','#19a974','#2d7ff9'];
-  const palette = cols.map(c=>`<button class="palette-btn" style="background:${c}" type="button" onclick="setColor('${c}')"></button>`).join('') + `<input type="color" class="palette-btn" id="customColor" onchange="setColor(this.value)">`;
-  showTask('Draw this',`<div class="bigText">${esc(text)}</div><canvas id="can" class="draw" width="800" height="600"></canvas><div class="tools">${palette}<button id="undo" type="button">Undo</button><button id="clear" type="button">Clear</button></div>`); 
+  const palette = `<div class="palette-group">` + cols.map(c=>`<button class="palette-btn" style="background:${c}" type="button" onclick="setColor('${c}')"></button>`).join('') + `<input type="color" class="palette-btn" id="customColor" onchange="setColor(this.value)"></div>`;
+  showTask('Draw this',`<div class="bigText">${esc(text)}</div><canvas id="can" class="draw" width="800" height="600"></canvas><div class="tools">${palette}<div class="action-group"><button id="undo" type="button">Undo</button><button id="clear" type="button">Clear</button></div></div>`); 
   canvas(); $('undo').onclick=()=>{strokes.pop(); redraw();}; $('clear').onclick=()=>{strokes=[]; redraw();}; $('submit').onclick=()=>submit({[id]:$('can').toDataURL('image/png')});
 }
 function ringoUI(s,msg){rg=s; $('wait').hidden=1; $('task').hidden=0; $('submit').hidden=1; $('taskTitle').textContent=s.win?'Game over':msg; $('taskBody').innerHTML=boardHTML(s.b,'play'); [...document.querySelectorAll('#taskBody .cell')].forEach(el=>el.onclick=()=>sendToHost('ringo',{x:el.dataset.x,y:el.dataset.y}));}

@@ -12,6 +12,16 @@
       <input id="name" maxlength="18" placeholder="Your name" autocomplete="name">
       <button id="joinBtn" type="submit">Join</button><p id="err" style="color:#d22; font-weight:bold;"></p>
     </form>
+    <div id="recent-rooms-container" hidden>
+      <h3 style="margin:20px 0 10px;font-size:1rem;color:#555">Recent Rooms</h3>
+      <div id="recent-rooms-list" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"></div>
+    </div>
+  </section>
+  <section id="claim" class="panel" hidden>
+    <h2>Claim Player</h2>
+    <p>This room is in progress. Are you one of these players?</p>
+    <ul id="claim-players-list"></ul>
+    <button onclick="$('claim').hidden=1;$('join').hidden=0;mqttClient.end()">Cancel</button>
   </section>
   <section id="wait" class="panel" hidden><h2 id="waitMsg">Waiting for host to choose a game...</h2></section>
   <section id="task" class="panel" hidden>
