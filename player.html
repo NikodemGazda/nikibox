@@ -1,11 +1,11 @@
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>nikibox Player</title><link rel="stylesheet" href="style.css?v=3">
+<title>nikibox Player</title><link rel="stylesheet" href="style.css?v=4">
 </head><body data-role="player">
 <div id="timer-bar" hidden></div>
 <main>
   <h1>nikibox</h1>
-  <div style="color:#777; margin-top:-10px; margin-bottom:20px; font-weight:bold;">v.1.4</div>
+  <div style="color:#777; margin-top:-10px; margin-bottom:20px; font-weight:bold;">v.1.5</div>
   <section id="join" class="panel">
     <form id="joinForm">
       <input id="room" maxlength="4" placeholder="ROOM" autocomplete="off">
@@ -18,10 +18,15 @@
     </div>
   </section>
   <section id="claim" class="panel" hidden>
-    <h2>Claim Player</h2>
-    <p>This room is in progress. Are you one of these players?</p>
+    <h2>Join this room</h2>
+    <p id="claim-msg"></p>
     <ul id="claim-players-list"></ul>
-    <button onclick="$('claim').hidden=1;$('join').hidden=0;mqttClient.end()">Cancel</button>
+    <div>
+      <button type="button" onclick="claimReplaceToggle()">Replace player</button>
+      <span id="claim-new-box" hidden><input id="claim-new-name" maxlength="18" placeholder="Your name" autocomplete="off" style="width:180px"><button type="button" onclick="claimNewJoin()">Join as new player</button></span>
+    </div>
+    <p id="claim-err" style="color:#d22;font-weight:bold"></p>
+    <button type="button" onclick="claimCancel()">Cancel</button>
   </section>
   <section id="wait" class="panel" hidden><h2 id="waitMsg">Waiting for host to choose a game...</h2><p class="muted" style="margin:16px 0 4px">In this room:</p><ul id="roster"></ul></section>
   <section id="task" class="panel" hidden>
@@ -29,5 +34,5 @@
   </section>
 </main>
 <script src="https://unpkg.com/mqtt@5.8.1/dist/mqtt.min.js"></script>
-<script src="game.js?v=1.4"></script>
+<script src="game.js?v=1.5"></script>
 </body></html>
