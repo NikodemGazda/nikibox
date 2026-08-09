@@ -1,11 +1,11 @@
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>nikibox Player</title><link rel="stylesheet" href="style.css?v=2">
+<title>nikibox Player</title><link rel="stylesheet" href="style.css?v=3">
 </head><body data-role="player">
 <div id="timer-bar" hidden></div>
 <main>
   <h1>nikibox</h1>
-  <div style="color:#777; margin-top:-10px; margin-bottom:20px; font-weight:bold;">v.1.3</div>
+  <div style="color:#777; margin-top:-10px; margin-bottom:20px; font-weight:bold;">v.1.4</div>
   <section id="join" class="panel">
     <form id="joinForm">
       <input id="room" maxlength="4" placeholder="ROOM" autocomplete="off">
@@ -23,11 +23,11 @@
     <ul id="claim-players-list"></ul>
     <button onclick="$('claim').hidden=1;$('join').hidden=0;mqttClient.end()">Cancel</button>
   </section>
-  <section id="wait" class="panel" hidden><h2 id="waitMsg">Waiting for host to choose a game...</h2></section>
+  <section id="wait" class="panel" hidden><h2 id="waitMsg">Waiting for host to choose a game...</h2><p class="muted" style="margin:16px 0 4px">In this room:</p><ul id="roster"></ul></section>
   <section id="task" class="panel" hidden>
     <h2 id="taskTitle"></h2><div id="taskBody"></div><button id="submit">Submit</button>
   </section>
 </main>
 <script src="https://unpkg.com/mqtt@5.8.1/dist/mqtt.min.js"></script>
-<script src="game.js?v=1.3"></script>
+<script src="game.js?v=1.4"></script>
 </body></html>
