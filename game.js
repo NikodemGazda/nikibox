@@ -209,7 +209,8 @@ function redraw(){let c=$('can'),x=c.getContext('2d'); x.clearRect(0,0,c.width,c
 function tickTimer() {
   requestAnimationFrame(tickTimer);
   let bar = $('timer-bar');
-  if (!bar || !deadline) { if(bar) bar.hidden=1; return; }
+  if (!bar) return;
+  if (!deadline) { bar.hidden = 0; bar.style.width = '100%'; bar.style.background = '#111'; return; }
   let rem = deadline - Date.now(), total = phase=='prompt'?30000:60000;
   if (role != 'host') total = totalTime;
   else if (phase == 'round') {
