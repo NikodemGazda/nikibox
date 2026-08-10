@@ -130,11 +130,38 @@ function saveRoom(r) {
   if (!rms.includes(r)) { rms.push(r); if(rms.length>5) rms.shift(); localStorage.setItem('nk_recent_rooms', JSON.stringify(rms)); }
 }
 function bootPlayer(){console.log('[PLAYER] Booting player...'); $('room').value=(new URLSearchParams(location.search).get('room')||'').toUpperCase(); $('joinForm').onsubmit=e=>{e.preventDefault(); console.log('[PLAYER] Join form submitted'); join();}; addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&room&&myId)sendToHost('sync_req');});
+  refreshRecentRooms();
+}
+function refreshRecentRooms(){
   let rms = JSON.parse(localStorage.getItem('nk_recent_rooms')||'[]');
-  if(rms.length) {
-    let rc = $('recent-rooms-container'); if(rc) rc.hidden = 0;
-    let rl = $('recent-rooms-list'); if(rl) rl.innerHTML = rms.map(r=>`<button type="button" onclick="checkRecent('${r}')">${r}</button>`).join('');
+  let rc = $('recent-rooms-container');
+  if(!rms.length){ if(rc) rc.hidden = 1; return; }
+  if(rc) rc.hidden = 0;
+  const latest = rms[rms.length-1];
+  let keep = new Set(rms), rl = $('recent-rooms-list');
+  function paint(){
+    let list = rms.filter(r=>keep.has(r));
+    if(list.indexOf(latest)<0) list.push(latest);
+    if(rl) rl.innerHTML = list.map(r=>`<button type="button" onclick="checkRecent('${r}')">${r}</button>`).join('');
+    if(rc) rc.hidden = !list.length;
+    localStorage.setItem('nk_recent_rooms', JSON.stringify(list));
   }
+  paint();
+  rms.forEach(r=>{ if(r!=latest) probeRoom(r, ok=>{ if(!ok) keep.delete(r); paint(); }); });
+}
+function probeRoom(rid, done){
+  let id = code()+code(), client = mqtt.connect('wss://broker.emqx.io:8084/mqtt'), alive = true;
+  let timer = setTimeout(()=>{ if(!alive)return; alive=false; try{client.end()}catch(e){}; done(false); }, 5000);
+  client.on('connect', ()=>{ client.subscribe(`nk/${rid}/p/${id}`); client.publish(`nk/${rid}/h`, JSON.stringify({id, t:'sync_req'})); });
+  client.on('message', (topic,payload)=>{
+    if(!alive) return;
+    let m; try{ m=JSON.parse(payload.toString()); }catch(e){ return; }
+    if(m && m.t=='sync_res' && Array.isArray(m.names)){
+      alive=false; clearTimeout(timer); try{ client.end(); }catch(e){}
+      done(m.names.length>0);
+    }
+  });
+  client.on('error', ()=>{ if(!alive)return; alive=false; clearTimeout(timer); try{client.end()}catch(e){}; done(false); });
 }
 function checkRecent(r) {
   err('Connecting to room...');
